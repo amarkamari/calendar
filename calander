@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIPS Preventive Maintenance Dashboard</title>
+<style>
+  :root{
+    --color-text-primary:#1a1a1a; --color-text-secondary:#5f5e5a; --color-text-tertiary:#888780;
+    --color-bg-primary:#ffffff; --color-bg-secondary:#f7f6f3; --color-bg-tertiary:#efeee9;
+    --color-border-tertiary:rgba(0,0,0,0.1); --color-border-secondary:rgba(0,0,0,0.2);
+    --accent:#0F6E56; --radius-lg:12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --color-text-primary:#f0f0ee; --color-text-secondary:#b4b2a9; --color-text-tertiary:#888780;
+      --color-bg-primary:#1c1c1a; --color-bg-secondary:#242422; --color-bg-tertiary:#2c2c29;
+      --color-border-tertiary:rgba(255,255,255,0.12); --color-border-secondary:rgba(255,255,255,0.24);
+      --accent:#5DCAA5;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:24px;background:var(--color-bg-primary);color:var(--color-text-primary);font-family:var(--font-sans);}
+  .pm-wrap{max-width:1200px;margin:0 auto;}
+  .pm-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .pm-title{font-size:20px;font-weight:600;}
+  .pm-sub{font-size:12px;color:var(--color-text-secondary);margin-top:2px;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px;}
+  @media (max-width:760px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  .kpi-card{background:var(--color-bg-secondary);border:1px solid var(--color-border-tertiary);border-radius:var(--radius-lg);padding:14px;cursor:pointer;transition:all 0.15s ease;}
+  .kpi-card:hover{border-color:var(--color-border-secondary);transform:translateY(-1px);}
+  .kpi-card.active{outline:2px solid var(--accent);}
+  .kpi-label{font-size:11px;color:var(--color-text-secondary);}
+  .kpi-value{font-size:26px;font-weight:600;margin-top:4px;}
+  .kpi-tag{display:inline-block;font-size:11px;margin-top:6px;padding:2px 8px;border-radius:999px;}
+  .tag-all{background:var(--color-bg-tertiary);color:var(--color-text-secondary);}
+  .tag-ok{background:#E1F5EE;color:#085041;}
+  .tag-soon{background:#FAEEDA;color:#633806;}
+  .tag-over{background:#FCEBEB;color:#791F1F;}
+  .tag-90{background:#E6F1FB;color:#0C447C;}
+  .threshold-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-text-secondary);margin-bottom:16px;background:var(--color-bg-secondary);border:1px solid var(--color-border-tertiary);border-radius:var(--radius-lg);padding:10px 14px;flex-wrap:wrap;}
+  .threshold-row input[type=range]{flex:1;max-width:220px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  @media (max-width:800px){.grid2{grid-template-columns:1fr;}}
+  .card{background:var(--color-bg-secondary);border:1px solid var(--color-border-tertiary);border-radius:var(--radius-lg);padding:16px;}
+  .card h3{font-size:13px;font-weight:600;margin:0 0 12px 0;color:var(--color-text-secondary);}
+  .tab{background:none;border:none;padding:8px 12px;cursor:pointer;border-bottom:2px solid transparent;font-size:13px;color:var(--color-text-secondary);}
+  .tab.active{border-bottom-color:var(--accent);color:var(--color-text-primary);font-weight:600;}
+  .tabbar{display:flex;gap:4px;border-bottom:1px solid var(--color-border-tertiary);margin-bottom:12px;flex-wrap:wrap;}
+  .controls{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+  input[type=text], select, button{
+    font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--color-border-tertiary);
+    background:var(--color-bg-primary);color:var(--color-text-primary);
+  }
+  button{cursor:pointer;}
+  button:hover{border-color:var(--color-border-secondary);}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;padding:8px 10px;color:var(--color-text-secondary);font-weight:600;border-bottom:1px solid var(--color-border-tertiary);cursor:pointer;white-space:nowrap;}
+  th:hover{color:var(--color-text-primary);}
+  td{padding:8px 10px;border-bottom:1px solid var(--color-border-tertiary);vertical-align:top;}
+  tr.datarow{cursor:pointer;}
+  tr.datarow:hover td{background:var(--color-bg-tertiary);}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .sys-tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--color-bg-tertiary);color:var(--color-text-secondary);margin:2px 3px 0 0;}
+  .detail-row td{background:var(--color-bg-tertiary);}
+  .detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:8px 4px;}
+  .detail-grid div span{display:block;font-size:11px;color:var(--color-text-tertiary);margin-bottom:2px;}
+  .small{font-size:11px;color:var(--color-text-tertiary);}
+  .footer-note{margin-top:12px;font-size:11px;color:var(--color-text-tertiary);}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--color-text-secondary);margin-top:10px;flex-wrap:wrap;}
+  .legend span{display:flex;align-items:center;gap:4px;}
+  #connError{display:none;background:#FCEBEB;color:#791F1F;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12.5px;}
+  .cal-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .cal-nav-btn{padding:6px 10px;font-size:14px;line-height:1;}
+  .cal-toggle-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--color-text-secondary);}
+  .cal-toggle-row label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-dow{font-size:11px;color:var(--color-text-secondary);text-align:center;padding:4px 0;font-weight:600;}
+  .cal-cell{min-height:118px;border:1px solid var(--color-border-tertiary);border-radius:8px;padding:6px;background:var(--color-bg-primary);cursor:pointer;transition:all .15s ease;position:relative;display:flex;flex-direction:column;gap:4px;}
+  .cal-cell:hover{border-color:var(--color-border-secondary);}
+  .cal-cell.empty{background:transparent;border-color:transparent;cursor:default;}
+  .cal-cell.today{outline:2px solid var(--accent);}
+  .cal-cell.selected{background:var(--color-bg-tertiary);}
+  .cal-daynum{font-size:11px;color:var(--color-text-secondary);}
+  .cal-count{position:absolute;top:4px;right:6px;font-size:10px;color:var(--color-text-tertiary);}
+  .cal-events{display:flex;flex-direction:column;gap:3px;overflow:hidden;}
+  .cal-chip{border-radius:6px;padding:3px 5px;font-size:10px;line-height:1.3;overflow:hidden;text-align:left;}
+  .cal-chip.projected{border:1px dashed var(--color-border-secondary);background:transparent !important;}
+  .cal-chip .chip-service{font-weight:600;display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cal-chip .chip-meta{color:inherit;opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cal-chip .chip-sys{opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cal-chip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block;}
+  .cal-more{font-size:10px;color:var(--color-text-tertiary);padding:2px 5px;}
+  .agenda-panel{margin-top:16px;border-top:1px solid var(--color-border-tertiary);padding-top:14px;}
+  .agenda-item{display:flex;flex-direction:column;align-items:stretch;padding:8px 10px;border-radius:8px;background:var(--color-bg-primary);border:1px solid var(--color-border-tertiary);margin-bottom:6px;font-size:12.5px;gap:6px;}
+  .agenda-item .row-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .agenda-item .l{display:flex;flex-direction:column;gap:2px;}
+  .agenda-item .meta{font-size:11px;color:var(--color-text-tertiary);}
+
+</style>
+</head>
+<body>
+<div class="pm-wrap">
+  <div class="pm-header">
+    <div>
+      <div class="pm-title">MIPS preventive maintenance dashboard</div>
+      <div class="pm-sub">Live data from Microsoft List</div>
+    </div>
+    <div class="small" id="lastSync"></div>
+  </div>
+
+  <div id="connError">Could not reach the data source. Showing sample data.</div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="threshold-row">
+    <span>"Due soon" window:</span>
+    <input type="range" id="thresholdSlider" min="3" max="30" step="1" value="14">
+    <span id="thresholdLabel" style="min-width:70px;font-variant-numeric:tabular-nums;">14 days</span>
+    <button id="refreshBtn" style="margin-left:auto;">Refresh data</button>
+  </div>
+
+
+  <div class="card">
+    <div class="tabbar">
+      <button class="tab active" data-tab="log">Full log</button>
+      <button class="tab" data-tab="calendar">Calendar</button>
+    </div>
+
+    <div id="panel-table">
+      <div class="controls">
+        <input type="text" id="searchBox" placeholder="Search service, location, system...">
+        <select id="filterBU"><option value="all">All BUs</option></select>
+        <button id="resetBtn">Reset filters</button>
+        <button id="exportCsvBtn">Export CSV</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="service">Service</th>
+              <th data-sort="bu">BU</th>
+              <th data-sort="location">Location</th>
+              <th data-sort="last">Last maintenance</th>
+              <th data-sort="next">Next maintenance</th>
+              <th data-sort="daysDiff">Days until</th>
+              <th data-sort="status">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#1D9E75"></span>On schedule</span>
+        <span><span class="dot" style="background:#BA7517"></span>Due soon</span>
+        <span><span class="dot" style="background:#E24B4A"></span>Overdue</span>
+        <span style="margin-left:auto;">Click a row for details</span>
+      </div>
+      <div class="footer-note" id="rowCount"></div>
+    </div>
+
+    <div id="panel-calendar" hidden>
+      <div class="cal-toolbar">
+        <button class="cal-nav-btn" id="calPrevBtn">&#8592;</button>
+        <select id="calMonthSelect"></select>
+        <select id="calYearSelect"></select>
+        <button class="cal-nav-btn" id="calNextBtn">&#8594;</button>
+        <button id="calTodayBtn">Today</button>
+        <select id="calBUFilter" style="margin-left:auto;"><option value="all">All BUs</option></select>
+        <button id="exportIcsBtn">Export month (.ics)</button>
+      </div>
+      <div class="cal-toggle-row">
+        <label><input type="checkbox" id="toggleCompleted" checked> Show completed (last maintenance)</label>
+        <label><input type="checkbox" id="toggleProjected"> Show projected future cycles (estimated)</label>
+      </div>
+      <div class="cal-grid" id="calDowRow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:6px;"></div>
+      <div class="legend">
+        <span><span class="dot" style="background:#1D9E75"></span>On schedule</span>
+        <span><span class="dot" style="background:#BA7517"></span>Due soon</span>
+        <span><span class="dot" style="background:#E24B4A"></span>Overdue</span>
+        <span><span class="dot" style="background:#888780"></span>Completed</span>
+        <span><span class="dot" style="border:1px dashed #534AB7;background:transparent;"></span>Projected (est.)</span>
+        <span style="margin-left:auto;">Click a day to see scheduled maintenance</span>
+      </div>
+      <div class="agenda-panel" id="agendaPanel"></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* =========================================================
+   CONFIGURATION
+   ========================================================= */
+var DATA_SOURCE = "sharepoint"; // "sharepoint" | "powerautomate" | "jsonfile" | "sample"
+
+var SHAREPOINT_SITE_URL = "https://schottorg.sharepoint.com/sites/SAITS-OT-Operations";
+var SHAREPOINT_LIST_NAME = "PM_Masterdata"; // CONFIRM this matches the exact List Name from List Settings
+var FIELD_MAP = {
+  Service: "Title", BU: "field_1", Location: "field_2",
+  LastMaintenance: "field_3", NextMaintenance: "field_4",
+  Frequency: "field_5", Time: "field_6", Duration: "field_7", AffectedSystems: "field_8"
+};
+var API_URL = "PASTE_YOUR_POWER_AUTOMATE_HTTP_URL_HERE";
+var JSON_FILE_URL = "PASTE_URL_TO_YOUR_JSON_SNAPSHOT_FILE_HERE";
+
+var SAMPLE_DATA_RAW = [
+["AOOD","AO","Dureya","2026-06-30","2026-09-29","Quarterly","15:00-18:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["AOOK","AO","Kulim","2026-07-14","2026-10-13","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS, MIPS Factory DB"],
+["AOOM","AO","Mainz","2026-07-07","2026-10-06","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS, Kuehldatenbank"],
+["AOOP","AO","Penang","2026-07-02","2026-10-01","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["AOOY","AO","Yverdon","2026-07-09","2026-10-08","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["EPC","EP","Suzhou","2026-07-16","2026-10-15","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["EPL","EP","Landshut","2026-07-21","2026-10-20","Quarterly","14:00-17:00 UTC+2","3h","MIPS Products, MIPS Factory, DIL, PASS, Cronet, Pulver DB, PQ"],
+["EPN","EP","Landskroun","2026-07-23","2026-10-22","Quarterly","09:00-12:00 UTC+2","3h","PASS, Cronet"],
+["EPS","EP","Singapore","2026-07-28","2026-10-27","Quarterly","14:00-17:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS, Cronet"],
+["F","F","Mainz","2026-07-30","2026-10-29","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["HCP","HCP","Mainz","2026-08-04","2026-11-03","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS, Cronet"],
+["HCS","HCS","Mainz","2026-08-06","2026-11-05","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, DIL, PASS, BATCH, IPP"],
+["HFG","HFG","Gruenenplan","2026-05-26","2026-11-10","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS, PAD"],
+["HFP","HFP","Penang","2026-08-13","2026-11-12","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["HFJ","HFJ","Jena","2026-08-18","2026-11-17","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory Auto, DIL, PASS, Cronet, BATCH, IPP"],
+["LEM","L","Marienborn","2026-08-20","2026-11-19","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, MIP, DIL, PASS"],
+["LNS","L","Southbridge","2026-08-25","2026-11-24","Quarterly","09:00-12:00 UTC+2","3h","MIPS Products, MIPS Factory, DIL, PASS"],
+["OT (MIPS Central)","OT","Mainz","2026-08-05","2026-11-04","Quarterly","09:00-10:00 UTC+2","1h","MIPS Central"],
+["PPH","P","Lukaczhaza","2026-08-27","2026-11-26","Quarterly","09:00-12:00 UTC+2","3h","Template"],
+["PPG","P","St. Gallen","2026-09-02","2026-12-02","Quarterly","09:00-12:00 UTC+2","3h","Template"],
+["PPK 1480","P","Muellheim","2026-09-01","2026-12-01","Quarterly","09:00-12:00 UTC+2","3h","Template"],
+["PPK 2074","P","Muellheim","2026-09-03","2026-12-03","Quarterly","09:00-12:00 UTC+2","3h","Template"],
+["RD","RD","Mainz","2026-09-08","2026-12-08","Quarterly","09:00-12:00 UTC+2","3h","DIL, PASS, IPP"],
+["TC","TC","Jinyun","2026-09-08","2026-12-08","Quarterly","14:00-17:00 UTC+2","3h","Cronet"],
+["TI","TI","Jambusar","2026-09-09","2026-12-09","Quarterly","14:00-17:00 UTC+2","3h","Cronet"],
+["TR","TR","Mitterteich/Mainz","2026-09-10","2026-12-10","Quarterly","14:00-17:00 UTC+2","3h","MIPS Products, Cronet"],
+["TSW","TSW","Mainz","2026-09-10","2026-12-10","Quarterly","09:00-10:00 UTC+2","1h","Connect"]
+];
+var SAMPLE_DATA = SAMPLE_DATA_RAW.map(function(r){
+  return {Service:r[0],BU:r[1],Location:r[2],LastMaintenance:r[3],NextMaintenance:r[4],
+    Frequency:r[5],Time:r[6],Duration:r[7],AffectedSystems:r[8]};
+});
+
+/* =========================================================
+   STATE
+   ========================================================= */
+var rawData = [];
+var threshold = 14;
+var currentFilter = "all";
+var currentTab = "log";
+var sortKey = "daysDiff";
+var sortDir = 1;
+var expandedRow = null;
+var calYear, calMonth, calSelectedDate = null;
+var showCompleted = true;
+var showProjected = false;
+var PROJECTION_CYCLES = 4; // how many future cycles to project when enabled
+
+function parseUTCDateAsLocalCalendarDate(dateStr){
+  // SharePoint returns dates as UTC ISO strings (e.g. "2026-06-29T16:00:00Z").
+  // A plain `new Date(dateStr)` would then get re-rendered in the VIEWER'S local
+  // timezone, which can silently shift the calendar day backward or forward
+  // depending on where someone opens the dashboard (e.g. Germany vs Malaysia).
+  // To keep the same calendar date for every viewer worldwide, we read the
+  // UTC year/month/day components and build a LOCAL date from those same
+  // numbers, so the displayed date never depends on the viewer's timezone.
+  if(!dateStr) return new Date(NaN);
+  var d = new Date(dateStr);
+  if(isNaN(d.getTime())) return d;
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+function normalize(items){
+  return items.map(function(it){
+    var lastD = parseUTCDateAsLocalCalendarDate(it.LastMaintenance);
+    var nextD = parseUTCDateAsLocalCalendarDate(it.NextMaintenance);
+    return {
+      service: it.Service, bu: it.BU, location: it.Location, lastD: lastD, nextD: nextD,
+      last: lastD.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}),
+      next: nextD.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"}),
+      frequency: it.Frequency, time: it.Time, duration: it.Duration,
+      systems: (it.AffectedSystems || "").split(",").map(function(s){return s.trim();}).filter(Boolean)
+    };
+  });
+}
+
+function mapSharePointItem(item){
+  function get(k){ return item[FIELD_MAP[k]]; }
+  return {Service:get("Service"),BU:get("BU"),Location:get("Location"),LastMaintenance:get("LastMaintenance"),
+    NextMaintenance:get("NextMaintenance"),Frequency:get("Frequency"),Time:get("Time"),Duration:get("Duration"),
+    AffectedSystems:get("AffectedSystems")};
+}
+function fetchFromSharePoint(){
+  var listUrl = SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + encodeURIComponent(SHAREPOINT_LIST_NAME) + "')/items?$top=500";
+  return fetch(listUrl, {headers:{"Accept":"application/json;odata=nometadata"}, credentials:"same-origin"})
+    .then(function(res){
+      if(!res.ok) throw new Error("SharePoint REST error: " + res.status);
+      return res.json();
+    })
+    .then(function(json){
+      var items = json.value || (json.d && json.d.results) || [];
+      return items.map(mapSharePointItem);
+    });
+}
+function fetchFromPowerAutomate(){
+  if(!API_URL || API_URL.indexOf("PASTE_YOUR") === 0) return Promise.reject(new Error("API_URL not configured"));
+  return fetch(API_URL).then(function(res){
+    if(!res.ok) throw new Error("Bad response: " + res.status);
+    return res.json();
+  });
+}
+function fetchFromJsonFile(){
+  if(!JSON_FILE_URL || JSON_FILE_URL.indexOf("PASTE_URL") === 0) return Promise.reject(new Error("JSON_FILE_URL not configured"));
+  return fetch(JSON_FILE_URL, {credentials:"same-origin"}).then(function(res){
+    if(!res.ok) throw new Error("Bad response: " + res.status);
+    return res.json();
+  });
+}
+
+function loadData(){
+  var errBox = document.getElementById("connError");
+  errBox.style.display = "none";
+  var p;
+  if(DATA_SOURCE === "sharepoint") p = fetchFromSharePoint();
+  else if(DATA_SOURCE === "powerautomate") p = fetchFromPowerAutomate();
+  else if(DATA_SOURCE === "jsonfile") p = fetchFromJsonFile();
+  else p = Promise.resolve(SAMPLE_DATA);
+
+  p.then(function(items){
+    rawData = normalize(items);
+  }).catch(function(e){
+    console.warn("Falling back to sample data:", e.message);
+    rawData = normalize(SAMPLE_DATA);
+    errBox.textContent = "Could not reach \"" + DATA_SOURCE + "\" data source (" + e.message + "). Showing sample data.";
+    errBox.style.display = "block";
+  }).then(function(){
+    recompute();
+    populateBUFilter();
+    renderKPIs();
+    renderTable();
+    renderCharts();
+    renderCalendar();
+    document.getElementById("lastSync").textContent = "Last synced: " + new Date().toLocaleString();
+  });
+}
+
+function recompute(){
+  var today = new Date(); today.setHours(0,0,0,0);
+  rawData.forEach(function(r){
+    r.daysDiff = Math.round((r.nextD - today)/(1000*60*60*24));
+    r.status = r.daysDiff < 0 ? "overdue" : (r.daysDiff <= threshold ? "soon" : "ok");
+  });
+}
+function computeCounts(){
+  var total = rawData.length;
+  var ok = rawData.filter(function(r){return r.status==="ok";}).length;
+  var soon = rawData.filter(function(r){return r.status==="soon";}).length;
+  var overdue = rawData.filter(function(r){return r.status==="overdue";}).length;
+  var next90 = rawData.filter(function(r){return r.daysDiff>=0 && r.daysDiff<=90;}).length;
+  return {total:total, ok:ok, soon:soon, overdue:overdue, next90:next90};
+}
+
+function el(tag, attrs, html){
+  var e = document.createElement(tag);
+  if(attrs){ for(var k in attrs){ e.setAttribute(k, attrs[k]); } }
+  if(html !== undefined){ e.innerHTML = html; }
+  return e;
+}
+
+function renderKPIs(){
+  var c = computeCounts();
+  var cards = [
+    {key:"all", label:"Total services", value:c.total, tag:"All tracked", tagClass:"tag-all"},
+    {key:"ok", label:"On schedule", value:c.ok, tag:"No action needed", tagClass:"tag-ok"},
+    {key:"soon", label:"Due soon", value:c.soon, tag:"Within " + threshold + "d", tagClass:"tag-soon"},
+    {key:"overdue", label:"Overdue", value:c.overdue, tag:"Needs action", tagClass:"tag-over"},
+    {key:"next90", label:"Next 90 days", value:c.next90, tag:"Upcoming window", tagClass:"tag-90"}
+  ];
+  var grid = document.getElementById("kpiGrid");
+  grid.innerHTML = "";
+  cards.forEach(function(card){
+    var div = el("div", {"class":"kpi-card" + (currentFilter===card.key?" active":"")});
+    div.innerHTML =
+      '<div class="kpi-label">' + card.label + "</div>" +
+      '<div class="kpi-value">' + card.value + "</div>" +
+      '<span class="kpi-tag ' + card.tagClass + '">' + card.tag + "</span>";
+    div.addEventListener("click", function(){ setFilter(card.key); });
+    grid.appendChild(div);
+  });
+}
+
+function setFilter(key){
+  currentFilter = (currentFilter === key) ? "all" : key;
+  renderKPIs();
+  renderTable();
+}
+function resetFilters(){
+  currentFilter = "all";
+  document.getElementById("searchBox").value = "";
+  document.getElementById("filterBU").value = "all";
+  renderKPIs();
+  renderTable();
+}
+function showTab(id){
+  currentTab = id;
+  expandedRow = null;
+  document.querySelectorAll(".tab").forEach(function(b){
+    b.classList.toggle("active", b.getAttribute("data-tab") === id);
+  });
+  var tablePanel = document.getElementById("panel-table");
+  var calPanel = document.getElementById("panel-calendar");
+  if(id === "calendar"){
+    tablePanel.hidden = true; calPanel.hidden = false;
+    renderCalendar();
+  } else {
+    tablePanel.hidden = false; calPanel.hidden = true;
+    renderTable();
+  }
+}
+function sortBy(key){
+  if(sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+  renderTable();
+}
+function getFilteredData(){
+  var data = rawData.slice();
+  if(currentTab === "upcoming") data = data.filter(function(r){ return r.daysDiff>=0 && r.daysDiff<=90; });
+  else if(currentTab === "overdue") data = data.filter(function(r){ return r.status==="overdue"; });
+
+  if(currentFilter === "ok") data = data.filter(function(r){ return r.status==="ok"; });
+  else if(currentFilter === "soon") data = data.filter(function(r){ return r.status==="soon"; });
+  else if(currentFilter === "overdue") data = data.filter(function(r){ return r.status==="overdue"; });
+  else if(currentFilter === "next90") data = data.filter(function(r){ return r.daysDiff>=0 && r.daysDiff<=90; });
+
+  var search = document.getElementById("searchBox").value.toLowerCase();
+  if(search){
+    data = data.filter(function(r){ return (r.service+r.location+r.systems.join(" ")).toLowerCase().indexOf(search) !== -1; });
+  }
+  var bu = document.getElementById("filterBU").value;
+  if(bu !== "all") data = data.filter(function(r){ return r.bu === bu; });
+
+  data.sort(function(a,b){
+    var av = a[sortKey], bv = b[sortKey];
+    if(typeof av === "string"){ av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if(av < bv) return -1*sortDir;
+    if(av > bv) return 1*sortDir;
+    return 0;
+  });
+  return data;
+}
+function statusColor(status){
+  if(status === "overdue") return "#E24B4A";
+  if(status === "soon") return "#BA7517";
+  if(status === "completed") return "#888780";
+  if(status === "projected") return "#7F77DD";
+  return "#1D9E75";
+}
+function statusBadge(r){
+  if(r.status === "overdue") return '<span class="badge" style="background:#FCEBEB;color:#791F1F;"><span class="dot" style="background:#E24B4A"></span>Overdue ' + Math.abs(r.daysDiff) + "d</span>";
+  if(r.status === "soon") return '<span class="badge" style="background:#FAEEDA;color:#633806;"><span class="dot" style="background:#BA7517"></span>Due in ' + r.daysDiff + "d</span>";
+  return '<span class="badge" style="background:#E1F5EE;color:#085041;"><span class="dot" style="background:#1D9E75"></span>On schedule</span>';
+}
+function populateBUFilter(){
+  var bus = [];
+  rawData.forEach(function(r){ if(bus.indexOf(r.bu) === -1) bus.push(r.bu); });
+  bus.sort();
+  var opts = '<option value="all">All BUs</option>' + bus.map(function(b){ return '<option value="'+b+'">'+b+"</option>"; }).join("");
+  document.getElementById("filterBU").innerHTML = opts;
+  document.getElementById("calBUFilter").innerHTML = opts;
+}
+function toggleRow(idx){
+  expandedRow = (expandedRow === idx) ? null : idx;
+  renderTable();
+}
+function renderTable(){
+  var data = getFilteredData();
+  var tbody = document.getElementById("tableBody");
+  tbody.innerHTML = "";
+  if(data.length === 0){
+    var trEmpty = el("tr", null, '<td colspan="7" style="text-align:center;color:var(--color-text-tertiary);padding:20px;">No records match the current filters.</td>');
+    tbody.appendChild(trEmpty);
+  } else {
+    data.forEach(function(r, i){
+      var tr = el("tr", {"class":"datarow"});
+      tr.innerHTML = "<td>"+r.service+"</td><td>"+r.bu+"</td><td>"+r.location+"</td>"+
+        "<td>"+r.last+"</td><td>"+r.next+"</td><td>"+r.daysDiff+"</td><td>"+statusBadge(r)+"</td>";
+      tr.addEventListener("click", function(){ toggleRow(i); });
+      tbody.appendChild(tr);
+      if(expandedRow === i){
+        var trDetail = el("tr", {"class":"detail-row"});
+        trDetail.innerHTML = '<td colspan="7"><div class="detail-grid">'+
+          "<div><span>Time window</span>"+r.time+"</div>"+
+          "<div><span>Duration</span>"+r.duration+"</div>"+
+          "<div><span>Frequency</span>"+r.frequency+"</div></div>"+
+          '<div style="padding:0 4px 6px;"><span class="small">Affected systems</span><br>'+
+          r.systems.map(function(s){ return '<span class="sys-tag">'+s+"</span>"; }).join("")+
+          "</div></td>";
+        tbody.appendChild(trDetail);
+      }
+    });
+  }
+  document.getElementById("rowCount").textContent = "Showing " + data.length + " of " + rawData.length + " services";
+}
+function exportCSV(){
+  var data = getFilteredData();
+  var header = ["Service","BU","Location","Last Maintenance","Next Maintenance","Frequency","Time","Duration","Affected Systems","Status"];
+  var rows = data.map(function(r){ return [r.service, r.bu, r.location, r.last, r.next, r.frequency, r.time, r.duration, r.systems.join("; "), r.status]; });
+  var csv = header.join(",") + "\n" + rows.map(function(row){
+    return row.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(",");
+  }).join("\n");
+  var blob = new Blob([csv], {type:"text/csv"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "pm_export_" + new Date().toISOString().slice(0,10) + ".csv";
+  a.click();
+}
+
+/* ---------- Charts ---------- */
+var rootStyles = getComputedStyle(document.documentElement);
+var textColor = rootStyles.getPropertyValue("--color-text-secondary").trim() || "#5f5e5a";
+var gridColor = rootStyles.getPropertyValue("--color-border-tertiary").trim() || "rgba(0,0,0,0.1)";
+var statusChartInst, buChartInst, sysChartInst;
+function renderCharts(){
+  var c = computeCounts();
+  if(statusChartInst) statusChartInst.destroy();
+  statusChartInst = new Chart(document.getElementById("statusChart").getContext("2d"), {
+    type: "doughnut",
+    data: { labels: ["On schedule","Due soon","Overdue"], datasets: [{ data: [c.ok, c.soon, c.overdue], backgroundColor: ["#1D9E75","#BA7517","#E24B4A"], borderWidth: 0 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:"60%",
+      plugins:{ legend:{ position:"bottom", labels:{ color:textColor, font:{size:12}, padding:14 } } } }
+  });
+
+  var buCounts = {};
+  rawData.forEach(function(r){ buCounts[r.bu] = (buCounts[r.bu]||0)+1; });
+  if(buChartInst) buChartInst.destroy();
+  buChartInst = new Chart(document.getElementById("buChart").getContext("2d"), {
+    type: "bar",
+    data: { labels: Object.keys(buCounts), datasets: [{ label:"Services", data: Object.values(buCounts), backgroundColor:"#7F77DD", borderRadius:4, borderSkipped:false }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ color:textColor, font:{size:11} }, border:{color:gridColor} },
+               y:{ grid:{ color:gridColor }, ticks:{ color:textColor, font:{size:11}, stepSize:1 }, border:{display:false} } } }
+  });
+
+  var sysCounts = {};
+  rawData.forEach(function(r){ r.systems.forEach(function(sys){ sysCounts[sys] = (sysCounts[sys]||0)+1; }); });
+  var sortedSys = Object.entries(sysCounts).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
+  if(sysChartInst) sysChartInst.destroy();
+  sysChartInst = new Chart(document.getElementById("sysChart").getContext("2d"), {
+    type: "bar",
+    data: { labels: sortedSys.map(function(x){return x[0];}), datasets: [{ label:"Services", data: sortedSys.map(function(x){return x[1];}), backgroundColor:"#378ADD", borderRadius:4, borderSkipped:false }] },
+    options: { responsive:true, maintainAspectRatio:false, indexAxis:"y", plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ color:gridColor }, ticks:{ color:textColor, font:{size:11}, stepSize:1 }, border:{display:false} },
+               y:{ grid:{ display:false }, ticks:{ color:textColor, font:{size:11} }, border:{color:gridColor} } } }
+  });
+}
+
+/* ---------- Calendar event model ----------
+   Builds a flat list of calendar events per service:
+   - one "completed" event at Last Maintenance date
+   - one event at Next Maintenance date (status: ok/soon/overdue)
+   - optionally, projected future cycles beyond Next Maintenance,
+     spaced by the same interval as (Next - Last), clearly marked "projected"
+   This lets the calendar show something meaningful in past months too,
+   not just the single Next Maintenance date.
+   ---------- */
+var calendarEvents = [];
+function buildCalendarEvents(){
+  var events = [];
+  rawData.forEach(function(r){
+    var intervalDays = Math.round((r.nextD - r.lastD) / (1000*60*60*24));
+    if(showCompleted){
+      events.push({
+        service:r.service, bu:r.bu, location:r.location, time:r.time, duration:r.duration,
+        frequency:r.frequency, systems:r.systems, date:r.lastD, status:"completed", kind:"completed"
+      });
+    }
+    events.push({
+      service:r.service, bu:r.bu, location:r.location, time:r.time, duration:r.duration,
+      frequency:r.frequency, systems:r.systems, date:r.nextD, status:r.status, kind:"scheduled",
+      daysDiff:r.daysDiff
+    });
+    if(showProjected && intervalDays > 0){
+      for(var cyc=1; cyc<=PROJECTION_CYCLES; cyc++){
+        var projDate = new Date(r.nextD.getTime());
+        projDate.setDate(projDate.getDate() + intervalDays*cyc);
+        events.push({
+          service:r.service, bu:r.bu, location:r.location, time:r.time, duration:r.duration,
+          frequency:r.frequency, systems:r.systems, date:projDate, status:"projected", kind:"projected"
+        });
+      }
+    }
+  });
+  calendarEvents = events;
+}
+function eventsForDate(dateObj){
+  var bu = document.getElementById("calBUFilter").value;
+  return calendarEvents.filter(function(ev){
+    if(bu !== "all" && ev.bu !== bu) return false;
+    return ev.date.getFullYear()===dateObj.getFullYear() && ev.date.getMonth()===dateObj.getMonth() && ev.date.getDate()===dateObj.getDate();
+  });
+}
+
+function statusChipBg(status){
+  if(status === "overdue") return "#FCEBEB";
+  if(status === "soon") return "#FAEEDA";
+  if(status === "completed") return "var(--color-bg-tertiary)";
+  if(status === "projected") return "transparent";
+  return "#E1F5EE";
+}
+function statusChipText(status){
+  if(status === "overdue") return "#791F1F";
+  if(status === "soon") return "#633806";
+  if(status === "completed") return "var(--color-text-secondary)";
+  if(status === "projected") return "var(--color-text-secondary)";
+  return "#085041";
+}
+function truncate(str, n){
+  if(!str) return "";
+  return str.length > n ? str.slice(0, n-1) + String.fromCharCode(8230) : str;
+}
+function buildChip(ev){
+  var bg = statusChipBg(ev.status);
+  var fg = statusChipText(ev.status);
+  var sysLabel = ev.systems.length > 0 ? ev.systems.join(", ") : "";
+  var sysShort = truncate(sysLabel, 32);
+  var kindLabel = ev.kind === "completed" ? " (done)" : (ev.kind === "projected" ? " (est.)" : "");
+  var titleAttr = (ev.service + " (" + ev.bu + ")" + kindLabel + " - " + sysLabel).replace(/"/g, "&quot;");
+  var extraClass = ev.kind === "projected" ? " projected" : "";
+  var html = "";
+  html += '<div class="cal-chip' + extraClass + '" style="background:' + bg + ';color:' + fg + ';" title="' + titleAttr + '">';
+  html += '<div class="chip-service"><span class="cal-chip-dot" style="background:' + statusColor(ev.status) + '"></span>' + truncate(ev.service, 14) + kindLabel + "</div>";
+  html += '<div class="chip-meta">BU: ' + ev.bu + "</div>";
+  html += '<div class="chip-sys">' + sysShort + "</div>";
+  html += "</div>";
+  return html;
+}
+
+/* ---------- Calendar rendering ---------- */
+var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function initCalendarControls(){
+  var monthSel = document.getElementById("calMonthSelect");
+  monthSel.innerHTML = MONTH_NAMES.map(function(m,i){ return '<option value="'+i+'">'+m+"</option>"; }).join("");
+  var yearSel = document.getElementById("calYearSelect");
+  var thisYear = new Date().getFullYear();
+  var yearOpts = "";
+  for(var y = thisYear - 1; y <= thisYear + 2; y++){ yearOpts += '<option value="'+y+'">'+y+"</option>"; }
+  yearSel.innerHTML = yearOpts;
+  var today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  monthSel.value = calMonth;
+  yearSel.value = calYear;
+
+  var dow = document.getElementById("calDowRow");
+  dow.innerHTML = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(d){ return '<div class="cal-dow">'+d+"</div>"; }).join("");
+}
+function calJump(){
+  calMonth = parseInt(document.getElementById("calMonthSelect").value, 10);
+  calYear = parseInt(document.getElementById("calYearSelect").value, 10);
+  calSelectedDate = null;
+  renderCalendar();
+}
+function calShiftMonth(delta){
+  calMonth += delta;
+  if(calMonth < 0){ calMonth = 11; calYear--; }
+  if(calMonth > 11){ calMonth = 0; calYear++; }
+  document.getElementById("calMonthSelect").value = calMonth;
+  document.getElementById("calYearSelect").value = calYear;
+  calSelectedDate = null;
+  renderCalendar();
+}
+function calGoToday(){
+  var today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  document.getElementById("calMonthSelect").value = calMonth;
+  document.getElementById("calYearSelect").value = calYear;
+  calSelectedDate = today.toDateString();
+  renderCalendar();
+}
+function renderCalendar(){
+  if(calYear === undefined) return;
+  buildCalendarEvents();
+  var grid = document.getElementById("calGrid");
+  var firstOfMonth = new Date(calYear, calMonth, 1);
+  var daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  var startOffset = firstOfMonth.getDay() - 1;
+  if(startOffset < 0) startOffset = 6;
+  var todayStr = new Date().toDateString();
+
+  grid.innerHTML = "";
+  for(var i=0;i<startOffset;i++){
+    grid.appendChild(el("div", {"class":"cal-cell empty"}));
+  }
+  var _loop = function(d){
+    var dateObj = new Date(calYear, calMonth, d);
+    var dStr = dateObj.toDateString();
+    var evs = eventsForDate(dateObj);
+    var isToday = dStr === todayStr;
+    var isSelected = dStr === calSelectedDate;
+    var maxChips = 2;
+    var chipsHtml = "";
+    evs.slice(0, maxChips).forEach(function(ev){ chipsHtml += buildChip(ev); });
+    var moreHtml = evs.length > maxChips ? ('<div class="cal-more">+' + (evs.length - maxChips) + " more</div>") : "";
+    var countBadge = evs.length > 0 ? ('<span class="cal-count">' + evs.length + "</span>") : "";
+    var cell = el("div", {"class":"cal-cell " + (isToday?"today ":"") + (isSelected?"selected":"")});
+    cell.innerHTML = '<div class="cal-daynum">' + d + "</div>" + countBadge + '<div class="cal-events">' + chipsHtml + moreHtml + "</div>";
+    cell.addEventListener("click", function(){ calSelectDay(calYear, calMonth, d); });
+    grid.appendChild(cell);
+  };
+  for(var d=1; d<=daysInMonth; d++){ _loop(d); }
+
+  if(calSelectedDate){
+    renderAgenda(new Date(calSelectedDate));
+  } else {
+    document.getElementById("agendaPanel").innerHTML = '<div class="small">Click a day above to see scheduled maintenance for that date.</div>';
+  }
+}
+function calSelectDay(y,m,d){
+  calSelectedDate = new Date(y,m,d).toDateString();
+  renderCalendar();
+}
+function renderAgenda(dateObj){
+  var evs = eventsForDate(dateObj);
+  var panel = document.getElementById("agendaPanel");
+  var label = dateObj.toLocaleDateString("en-GB",{weekday:"long", day:"2-digit", month:"long", year:"numeric"});
+  if(evs.length === 0){
+    panel.innerHTML = "<div class=\"small\"><strong>" + label + "</strong> \u2014 no maintenance recorded or scheduled.</div>";
+    return;
+  }
+  var scheduledCount = evs.filter(function(ev){ return ev.kind === "scheduled"; }).length;
+  var warn = "";
+  if(scheduledCount > 1){
+    warn = '<div class="small" style="color:#791F1F;margin-bottom:8px;">Note: ' + scheduledCount + " services scheduled the same day \u2014 check for resource/technician conflicts.</div>";
+  }
+  var itemsHtml = evs.map(function(ev){
+    var sysTags = ev.systems.map(function(s){ return '<span class="sys-tag">' + s + "</span>"; }).join("");
+    var kindLabel = ev.kind === "completed" ? "Completed" : (ev.kind === "projected" ? "Projected (estimated)" : statusBadge(ev));
+    var kindBadge = ev.kind === "completed" ?
+      '<span class="badge" style="background:var(--color-bg-tertiary);color:var(--color-text-secondary);"><span class="dot" style="background:#888780"></span>Completed</span>' :
+      (ev.kind === "projected" ?
+        '<span class="badge" style="background:var(--color-bg-tertiary);color:var(--color-text-secondary);border:1px dashed var(--color-border-secondary);">Projected (est.)</span>' :
+        statusBadge(ev));
+    var html = "";
+    html += '<div class="agenda-item">';
+    html += '<div class="row-top">';
+    html += '<div class="l"><span>' + ev.service + " &middot; " + ev.location + "</span>";
+    html += '<span class="meta">' + ev.time + " &middot; " + ev.duration + " &middot; BU: " + ev.bu + "</span></div>";
+    html += kindBadge;
+    html += "</div>";
+    html += '<div>' + sysTags + "</div>";
+    html += "</div>";
+    return html;
+  }).join("");
+  panel.innerHTML = '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">' + label + " (" + evs.length + ")</div>" + warn + itemsHtml;
+}
+
+function pad(n){ return n<10 ? "0"+n : ""+n; }
+function toICSDate(dateObj, timeStr){
+  var hh="09", mm="00";
+  if(timeStr){
+    var m = timeStr.match(/(\d{2}):(\d{2})/);
+    if(m){ hh=m[1]; mm=m[2]; }
+  }
+  return dateObj.getFullYear() + pad(dateObj.getMonth()+1) + pad(dateObj.getDate()) + "T" + hh + mm + "00";
+}
+function exportMonthICS(){
+  var bu = document.getElementById("calBUFilter").value;
+  var monthEvents = calendarEvents.filter(function(ev){
+    if(ev.kind !== "scheduled") return false; // only export confirmed Next Maintenance dates
+    if(bu !== "all" && ev.bu !== bu) return false;
+    return ev.date.getFullYear()===calYear && ev.date.getMonth()===calMonth;
+  });
+  if(monthEvents.length === 0){ alert("No scheduled (Next Maintenance) events in this month to export."); return; }
+  var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SCHOTT PM Dashboard//EN\r\n";
+  monthEvents.forEach(function(ev,i){
+    var dtStart = toICSDate(ev.date, ev.time);
+    ics += "BEGIN:VEVENT\r\n" +
+      "UID:" + ev.service + "-" + calYear + calMonth + "-" + i + "@schott\r\n" +
+      "DTSTAMP:" + toICSDate(new Date(), "09:00") + "Z\r\n" +
+      "DTSTART:" + dtStart + "\r\n" +
+      "SUMMARY:PM - " + ev.service + " (" + ev.location + ")\r\n" +
+      "DESCRIPTION:BU: " + ev.bu + " | Duration: " + ev.duration + " | Systems: " + ev.systems.join(", ") + "\r\n" +
+      "END:VEVENT\r\n";
+  });
+  ics += "END:VCALENDAR";
+  var blob = new Blob([ics], {type:"text/calendar"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "pm_maintenance_" + MONTH_NAMES[calMonth] + "_" + calYear + ".ics";
+  a.click();
+}
+
+/* ---------- Wire up events ---------- */
+document.getElementById("thresholdSlider").addEventListener("input", function(){
+  threshold = parseInt(this.value, 10);
+  document.getElementById("thresholdLabel").textContent = threshold + " days";
+  recompute(); renderKPIs(); renderTable(); renderCharts(); renderCalendar();
+});
+document.getElementById("refreshBtn").addEventListener("click", loadData);
+document.getElementById("searchBox").addEventListener("input", renderTable);
+document.getElementById("filterBU").addEventListener("change", renderTable);
+document.getElementById("resetBtn").addEventListener("click", resetFilters);
+document.getElementById("exportCsvBtn").addEventListener("click", exportCSV);
+document.querySelectorAll(".tab").forEach(function(btn){
+  btn.addEventListener("click", function(){ showTab(btn.getAttribute("data-tab")); });
+});
+document.querySelectorAll("th[data-sort]").forEach(function(th){
+  th.addEventListener("click", function(){ sortBy(th.getAttribute("data-sort")); });
+});
+document.getElementById("calMonthSelect").addEventListener("change", calJump);
+document.getElementById("calYearSelect").addEventListener("change", calJump);
+document.getElementById("calPrevBtn").addEventListener("click", function(){ calShiftMonth(-1); });
+document.getElementById("calNextBtn").addEventListener("click", function(){ calShiftMonth(1); });
+document.getElementById("calTodayBtn").addEventListener("click", calGoToday);
+document.getElementById("calBUFilter").addEventListener("change", renderCalendar);
+document.getElementById("exportIcsBtn").addEventListener("click", exportMonthICS);
+document.getElementById("toggleCompleted").addEventListener("change", function(){
+  showCompleted = this.checked;
+  renderCalendar();
+});
+document.getElementById("toggleProjected").addEventListener("change", function(){
+  showProjected = this.checked;
+  renderCalendar();
+});
+
+initCalendarControls();
+loadData();
+setInterval(loadData, 30*60*1000);
+
+})();
+</script>
+</body>
+</html>
