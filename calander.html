@@ -791,6 +791,8 @@ function exportMonthICS(){
   a.download = "pm_maintenance_" + MONTH_NAMES[calMonth] + "_" + calYear + ".ics";
   a.click();
 }
+rm -rf node_modules
+rm -f package-lock.json
 
 /* ---------- Wire up events ---------- */
 document.getElementById("thresholdSlider").addEventListener("input", function(){
